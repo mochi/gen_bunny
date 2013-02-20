@@ -127,8 +127,6 @@ test_gb_stop({_ConnectionPid, _ChannelPid, TestPid}) ->
 
     gen_bunny:stop(TestPid),
 
-    timer:sleep(500), %% FIXME
-
     meck:validate(amqp_channel),
     meck:unload(amqp_channel),
     meck:validate(amqp_connection),

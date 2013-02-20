@@ -179,10 +179,7 @@ handle_call({get, NoAck}, _From,
     Resp = internal_get(Channel, Queue, NoAck),
     {reply, Resp, State};
 
-handle_call(stop, _From,
-            State = #bunnyc_state{channel=Channel, connection=Connection}) ->
-    amqp_channel:close(Channel),
-    amqp_connection:close(Connection),
+handle_call(stop, _From, State) ->
     {stop, normal, ok, State}.
 
 %% @private
@@ -221,7 +218,10 @@ handle_info(_Info, State) ->
     {noreply, State}.
 
 %% @private
-terminate(_Reason, _State) ->
+terminate(_Reason,
+            _State = #bunnyc_state{channel=Channel, connection=Connection}) ->
+    amqp_channel:close(Channel),
+    amqp_connection:close(Connection),
     ok.
 
 %% @private

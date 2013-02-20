@@ -86,6 +86,7 @@ cast(Dest, Request) ->
 
 %% @private
 init([Module, ConnectionInfo, DeclareInfo, InitArgs0]) ->
+    process_flag(trap_exit, true),
     {NoAck, InitArgs1} = get_opt(no_ack, InitArgs0, true),
     {ConnectFun, InitArgs2} = get_opt(connect_fun, InitArgs1,
                                       fun gen_bunny_mon:connect/1),
@@ -117,8 +118,8 @@ init([Module, ConnectionInfo, DeclareInfo, InitArgs0]) ->
             Error
     end.
 
-stop(Pid) when is_pid(Pid) ->
-    gen_server:cast(Pid, stop).
+stop(Server) ->
+    gen_server:cast(Server, stop).
 
 get_connection(Pid) when is_pid(Pid) ->
     gen_server:call(Pid, get_connection).
@@ -164,11 +165,11 @@ handle_call(Request, From,
             {stop, Reason, State#gen_bunny_state{modstate=NewModState}};
         {stop, Reason, Reply, NewModState} ->
             {stop, Reason, Reply, State#gen_bunny_state{modstate=NewModState}}
-  end.
+  end;
+handle_call(exit, _From, State) ->
+    {stop, normal, ok, State}.
 
 %% @private
-handle_cast(stop, State) ->
-    {stop, normal, State};
 handle_cast(Msg, State=#gen_bunny_state{mod=Module, modstate=ModState}) ->
     case Module:handle_cast(Msg, ModState) of
         {noreply, NewModState} ->
@@ -230,7 +231,7 @@ terminate(Reason,
                            connection=Connection,
                            mod=Mod, modstate=ModState}) ->
     io:format("gen_bunny terminating with reason ~p~n", [Reason]),
-    Mod:terminate(Reason, ModState),
+    catch Mod:terminate(Reason, ModState),
     #'basic.cancel_ok'{} = amqp_channel:call(
                              Channel,
                              #'basic.cancel'{consumer_tag=CTag}),
